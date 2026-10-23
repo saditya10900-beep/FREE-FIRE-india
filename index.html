@@ -1,0 +1,398 @@
+
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>ADITYA BATTLE ARENA MAX</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;overflow:hidden;background:#101827;color:white;font-family:Arial,sans-serif;touch-action:none}
+#world{position:fixed;inset:0}
+canvas{display:block}
+#hud{position:fixed;inset:0;pointer-events:none}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:7px;padding:10px;flex-wrap:wrap}
+.panel{background:#07111dd9;border:1px solid #ffffff35;border-radius:10px;padding:9px 12px;text-shadow:0 1px 3px #000}
+.brand{color:#ffd43b;font-weight:900;font-size:clamp(14px,3vw,21px)}
+.small{font-size:12px;margin-top:4px}
+#bar{height:8px;width:125px;background:#592b2b;border-radius:8px;overflow:hidden;margin-top:5px}
+#healthFill{height:100%;width:100%;background:#22c55e}
+#cross{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:27px;text-shadow:0 0 5px #000}
+#bottom{position:absolute;bottom:9px;left:50%;transform:translateX(-50%);white-space:nowrap;background:#07111dcc;padding:7px 10px;border-radius:8px;font-size:11px}
+button{border:1px solid #ffffff55;background:#14243be8;color:white;border-radius:12px;font-weight:bold;touch-action:none;user-select:none}
+#mobile{position:fixed;bottom:50px;left:12px;right:12px;display:none;justify-content:space-between;align-items:end;pointer-events:none}
+.pad{display:grid;grid-template-columns:48px 48px 48px;gap:5px;pointer-events:auto}
+.btn{height:48px;font-size:18px}
+.actions{display:flex;flex-wrap:wrap;gap:6px;max-width:190px;justify-content:end;pointer-events:auto}
+.actions button{width:57px;height:48px;font-size:11px}
+#weapons{position:fixed;right:10px;top:120px;display:flex;flex-direction:column;gap:5px}
+.weapon{padding:8px;background:#07111dcc;border:1px solid #ffffff44;border-radius:8px;font-size:12px}
+.weapon.active{background:#d59b08;color:#111}
+#overlay{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;text-align:center;padding:18px;background:linear-gradient(#07111dcc,#030712ee)}
+#card{width:min(510px,100%);padding:24px;border-radius:20px;background:#101b2cf2;border:1px solid #ffffff35}
+h1{font-size:clamp(26px,6vw,43px);color:#ffd43b;margin:0 0 12px}
+#start{padding:14px 25px;border:0;background:#facc15;color:#151515;font-size:17px}
+.muted{color:#cbd5e1;font-size:14px;line-height:1.6}
+@media(pointer:coarse){#mobile{display:flex}#weapons{top:125px;right:6px}.weapon{padding:7px;font-size:10px}#bottom{bottom:4px;font-size:9px}}
+</style>
+</head>
+<body>
+<div id="world"></div>
+
+<div id="hud">
+  <div class="top">
+    <div class="panel">
+      <div class="brand">🔥 ADITYA BATTLE ARENA MAX</div>
+      <div class="small">3D SURVIVAL BATTLE</div>
+    </div>
+    <div class="panel">
+      ❤️ HP: <b id="hp">100</b>
+      <div id="bar"><div id="healthFill"></div></div>
+    </div>
+    <div class="panel">
+      🔫 <b id="ammo">30 / 120</b>
+      <div class="small">Kills: <b id="kills">0</b> · Enemies: <b id="left">12</b></div>
+    </div>
+  </div>
+  <div id="cross">+</div>
+  <div id="bottom">WASD: Move · Mouse: Aim/Shoot · R: Reload · Shift: Run · Space: Jump</div>
+</div>
+
+<div id="weapons">
+  <button class="weapon active" data-gun="0">1 · PISTOL</button>
+  <button class="weapon" data-gun="1">2 · SMG</button>
+  <button class="weapon" data-gun="2">3 · RIFLE</button>
+  <button class="weapon" data-gun="3">4 · SNIPER</button>
+</div>
+
+<div id="mobile">
+  <div class="pad">
+    <div></div><button class="btn" data-key="w">▲</button><div></div>
+    <button class="btn" data-key="a">◀</button>
+    <button class="btn" data-key="s">▼</button>
+    <button class="btn" data-key="d">▶</button>
+  </div>
+  <div class="actions">
+    <button id="reloadBtn">RELOAD</button>
+    <button id="jumpBtn">JUMP</button>
+    <button id="fireBtn" style="background:#b91c1c">FIRE</button>
+  </div>
+</div>
+
+<div id="overlay">
+  <div id="card">
+    <h1>ADITYA BATTLE ARENA MAX</h1>
+    <p class="muted">अपना 3D बैटल शुरू करो। दुश्मनों को हराओ और Safe Zone के अंदर रहो!</p>
+    <p class="muted">Computer: WASD, Mouse, Click, R, Shift, Space<br>Mobile: स्क्रीन के बटन और दाएँ हिस्से में ड्रैग</p>
+    <button id="start">▶ PLAY GAME</button>
+    <p class="muted">Three.js 3D browser prototype · Internet required</p>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
+
+const $=id=>document.getElementById(id);
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x91c9ed);
+scene.fog=new THREE.Fog(0x91c9ed,75,175);
+
+const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.1,250);
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+$('world').appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0xe8f6ff,0x4b5d39,2));
+const sun=new THREE.DirectionalLight(0xffe8bd,2.5);
+sun.position.set(-35,60,30);
+sun.castShadow=true;
+sun.shadow.mapSize.set(1024,1024);
+scene.add(sun);
+
+const material=c=>new THREE.MeshStandardMaterial({color:c,roughness:.9});
+const obstacles=[];
+const enemies=[];
+const keys={};
+const clock=new THREE.Clock();
+const raycaster=new THREE.Raycaster();
+const aimPoint=new THREE.Vector2(0,0);
+
+let player,cameraYaw=0,cameraPitch=-.08;
+let health=100,kills=0,ammo=30,reserve=180;
+let selectedGun=0,fireCooldown=0,reloadTimer=0;
+let verticalSpeed=0,jumpReady=true;
+let started=false,gameOver=false,mouseHeld=false;
+let zoneRadius=82,zoneTimer=0;
+
+const guns=[
+ {name:'PISTOL',mag:12,damage:45,rate:.32,range:55},
+ {name:'SMG',mag:35,damage:18,rate:.085,range:48},
+ {name:'RIFLE',mag:30,damage:32,rate:.13,range:85},
+ {name:'SNIPER',mag:5,damage:100,rate:.8,range:140}
+];
+const magazines=[12,35,30,5];
+const reserves=[72,140,120,25];
+ammo=magazines[0];reserve=reserves[0];
+
+function addBox(name,x,y,z,w,h,d,color,solid=true){
+ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material(color));
+ m.name=name;m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;
+ scene.add(m);
+ if(solid)obstacles.push({x,z,hx:w/2,hz:d/2});
+ return m;
+}
+function randomPos(min=90){
+ return new THREE.Vector3((Math.random()-.5)*min,0,(Math.random()-.5)*min);
+}
+function buildWorld(){
+ const ground=new THREE.Mesh(new THREE.PlaneGeometry(220,220),material(0x4e873c));
+ ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
+
+ addBox('Road',0,.03,0,11,.05,210,0x41484a,false);
+ addBox('Road',0,.04,0,210,.05,11,0x41484a,false);
+
+ // Houses with roofs and doors
+ for(let i=0;i<18;i++){
+  const p=randomPos(160);if(p.length()<17)continue;
+  const w=4+Math.random()*3,d=4+Math.random()*3,h=2.5+Math.random()*1.4;
+  addBox('House',p.x,h/2,p.z,w,h,d,0xb89569);
+  addBox('Roof',p.x,h+.15,p.z,w+.5,.4,d+.5,0x853d30);
+  addBox('Door',p.x,h/2-.6,p.z+d/2+.045,.8,1.4,.1,0x4a2c1a,false);
+ }
+ // Trees
+ for(let i=0;i<85;i++){
+  const p=randomPos(195);if(p.length()<12)continue;
+  const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.22,.32,1.8,7),material(0x704528));
+  trunk.position.set(p.x,.9,p.z);trunk.castShadow=true;scene.add(trunk);
+  const crown=new THREE.Mesh(new THREE.SphereGeometry(1.5,8,7),material(0x286b31));
+  crown.position.set(p.x,2.7,p.z);crown.scale.y=1.2;crown.castShadow=true;scene.add(crown);
+  obstacles.push({x:p.x,z:p.z,hx:.5,hz:.5});
+ }
+ // Safe zone ring
+ const ringGeo=new THREE.RingGeometry(zoneRadius-.3,zoneRadius+.3,128);
+ const ring=new THREE.Mesh(ringGeo,new THREE.MeshBasicMaterial({color:0x45baff,side:THREE.DoubleSide}));
+ ring.rotation.x=-Math.PI/2;ring.position.y=.12;ring.name='Safe Zone Ring';scene.add(ring);
+}
+function soldier(color){
+ const g=new THREE.Group();
+ const body=new THREE.Mesh(new THREE.CapsuleGeometry(.38,.72,4,8),material(color));
+ body.position.y=1.05;body.castShadow=true;g.add(body);
+ const head=new THREE.Mesh(new THREE.SphereGeometry(.24,12,10),material(0xe5b48b));
+ head.position.y=1.8;head.castShadow=true;g.add(head);
+ const gun=new THREE.Mesh(new THREE.BoxGeometry(.13,.14,.8),material(0x20252a));
+ gun.position.set(.35,1.35,-.4);g.add(gun);
+ return g;
+}
+function createPlayer(){
+ player=soldier(0x2475e8);player.name='Aditya Player';scene.add(player);
+}
+function createEnemies(){
+ for(let i=0;i<12;i++){
+  const obj=soldier(i%4===0?0x9e2028:0xd82e32);
+  let p;do{p=randomPos(115)}while(p.length()<22);
+  obj.position.copy(p);scene.add(obj);
+  enemies.push({obj,hp:100,attack:1+Math.random()*2,alive:true});
+ }
+}
+function blocked(x,z,r=.6){
+ if(Math.abs(x)>106||Math.abs(z)>106)return true;
+ return obstacles.some(o=>Math.abs(x-o.x)<o.hx+r&&Math.abs(z-o.z)<o.hz+r);
+}
+function updateCamera(){
+ const target=player.position.clone().add(new THREE.Vector3(0,1.45,0));
+ const cp=Math.cos(cameraPitch),sp=Math.sin(cameraPitch);
+ const dir=new THREE.Vector3(Math.sin(cameraYaw)*cp,sp,-Math.cos(cameraYaw)*cp);
+ camera.position.copy(target).add(new THREE.Vector3(-dir.x*5,2.0-dir.y*1.4,-dir.z*5));
+ camera.lookAt(target.clone().add(dir.multiplyScalar(18)));
+}
+function move(dt){
+ let f=(keys.w?1:0)-(keys.s?1:0);
+ let s=(keys.d?1:0)-(keys.a?1:0);
+ const length=Math.hypot(f,s);
+ if(length){f/=length;s/=length;}
+ const speed=(keys.shift?9:5.5)*dt;
+ const dx=(Math.sin(cameraYaw)*f+Math.cos(cameraYaw)*s)*speed;
+ const dz=(-Math.cos(cameraYaw)*f+Math.sin(cameraYaw)*s)*speed;
+ const nx=player.position.x+dx,nz=player.position.z+dz;
+ if(!blocked(nx,player.position.z))player.position.x=nx;
+ if(!blocked(player.position.x,nz))player.position.z=nz;
+ if(length)player.rotation.y=cameraYaw+Math.PI;
+
+ if(keys.jump&&jumpReady){verticalSpeed=7;jumpReady=false;}
+ verticalSpeed-=19*dt;
+ player.position.y+=verticalSpeed*dt;
+ if(player.position.y<=0){player.position.y=0;verticalSpeed=0;jumpReady=true;}
+}
+function shoot(){
+ if(!started||gameOver||reloadTimer>0||ammo<=0||fireCooldown>0)return;
+ const gun=guns[selectedGun];
+ fireCooldown=gun.rate;ammo--;
+ raycaster.setFromCamera(aimPoint,camera);
+ raycaster.far=gun.range;
+ const targetGroups=enemies.filter(e=>e.alive).map(e=>e.obj);
+ const hits=raycaster.intersectObjects(targetGroups,true);
+ if(hits.length){
+  let node=hits[0].object;
+  while(node.parent&&!targetGroups.includes(node))node=node.parent;
+  const e=enemies.find(e=>e.obj===node);
+  if(e){
+   e.hp-=gun.damage;
+   if(e.hp<=0){
+    e.alive=false;scene.remove(e.obj);kills++;
+   }
+  }
+ }
+ updateHUD();
+}
+function reload(){
+ if(!started||gameOver||reloadTimer>0||ammo>=guns[selectedGun].mag||reserve<=0)return;
+ reloadTimer=1.35;
+}
+function switchGun(i){
+ if(i<0||i>=guns.length||i===selectedGun)return;
+ magazines[selectedGun]=ammo;reserves[selectedGun]=reserve;
+ selectedGun=i;ammo=magazines[i];reserve=reserves[i];
+ document.querySelectorAll('.weapon').forEach((b,j)=>b.classList.toggle('active',j===i));
+ updateHUD();
+}
+function updateEnemies(dt){
+ for(const e of enemies){
+  if(!e.alive)continue;
+  const dx=player.position.x-e.obj.position.x,dz=player.position.z-e.obj.position.z;
+  const dist=Math.hypot(dx,dz);
+  if(dist>3){
+   const step=2.0*dt,nx=e.obj.position.x+dx/(dist||1)*step,nz=e.obj.position.z+dz/(dist||1)*step;
+   if(!blocked(nx,e.obj.position.z,.45))e.obj.position.x=nx;
+   if(!blocked(e.obj.position.x,nz,.45))e.obj.position.z=nz;
+  }
+  if(dist>.1)e.obj.rotation.y=Math.atan2(-dx,-dz);
+  e.attack-=dt;
+  if(dist<24&&e.attack<=0){
+   health=Math.max(0,health-(3+Math.random()*5));
+   e.attack=1.1+Math.random()*1.3;
+  }
+ }
+ if(health<=0)endGame(false);
+ if(enemies.every(e=>!e.alive))endGame(true);
+}
+function updateZone(dt){
+ zoneTimer+=dt;
+ if(zoneTimer>12){
+  zoneTimer=0;zoneRadius=Math.max(16,zoneRadius-5);
+  const ring=scene.getObjectByName('Safe Zone Ring');
+  if(ring){
+   ring.geometry.dispose();
+   ring.geometry=new THREE.RingGeometry(zoneRadius-.3,zoneRadius+.3,128);
+  }
+ }
+ if(Math.hypot(player.position.x,player.position.z)>zoneRadius)
+  health=Math.max(0,health-5*dt);
+}
+function updateHUD(){
+ $('hp').textContent=Math.ceil(health);
+ $('healthFill').style.width=health+'%';
+ $('healthFill').style.background=health<30?'#ef4444':health<60?'#f59e0b':'#22c55e';
+ $('ammo').textContent=ammo+' / '+reserve+(reloadTimer>0?' · Reloading':'');
+ $('kills').textContent=kills;
+ $('left').textContent=enemies.filter(e=>e.alive).length;
+}
+function endGame(victory){
+ if(gameOver)return;gameOver=true;
+ document.exitPointerLock?.();
+ $('overlay').style.display='flex';
+ $('card').innerHTML=`<h1>${victory?'🏆 VICTORY!':'💀 GAME OVER'}</h1>
+ <p class="muted">Kills: ${kills} / 12</p><button id="again">PLAY AGAIN</button>`;
+ $('again').onclick=()=>location.reload();
+}
+function animate(){
+ requestAnimationFrame(animate);
+ const dt=Math.min(clock.getDelta(),.04);
+ if(started&&!gameOver){
+  if(fireCooldown>0)fireCooldown-=dt;
+  if(reloadTimer>0){
+   reloadTimer-=dt;
+   if(reloadTimer<=0){
+    const n=Math.min(guns[selectedGun].mag-ammo,reserve);
+    ammo+=n;reserve-=n;
+   }
+  }
+  move(dt);updateCamera();updateEnemies(dt);updateZone(dt);updateHUD();
+ }
+ renderer.render(scene,camera);
+}
+
+$('start').onclick=()=>{
+ started=true;$('overlay').style.display='none';
+ if(matchMedia('(pointer:fine)').matches)renderer.domElement.requestPointerLock?.();
+};
+document.addEventListener('mousemove',e=>{
+ if(document.pointerLockElement===renderer.domElement){
+  cameraYaw-=e.movementX*.0025;
+  cameraPitch=THREE.MathUtils.clamp(cameraPitch-e.movementY*.002,-.45,.45);
+ }
+});
+renderer.domElement.addEventListener('mousedown',e=>{
+ if(e.button===0&&started&&document.pointerLockElement===renderer.domElement)shoot();
+});
+document.addEventListener('keydown',e=>{
+ keys[e.key.toLowerCase()]=true;
+ if(e.code==='Space'){keys.jump=true;e.preventDefault();}
+ if(e.key.toLowerCase()==='r')reload();
+ if(['1','2','3','4'].includes(e.key))switchGun(Number(e.key)-1);
+});
+document.addEventListener('keyup',e=>{
+ keys[e.key.toLowerCase()]=false;
+ if(e.code==='Space')keys.jump=false;
+});
+document.querySelectorAll('[data-key]').forEach(b=>{
+ const k=b.dataset.key;
+ b.addEventListener('pointerdown',e=>{e.preventDefault();keys[k]=true;b.setPointerCapture(e.pointerId)});
+ const stop=()=>keys[k]=false;
+ b.addEventListener('pointerup',stop);b.addEventListener('pointercancel',stop);b.addEventListener('lostpointercapture',stop);
+});
+$('reloadBtn').onclick=reload;
+$('jumpBtn').addEventListener('pointerdown',e=>{e.preventDefault();keys.jump=true});
+$('jumpBtn').addEventListener('pointerup',()=>keys.jump=false);
+$('jumpBtn').addEventListener('pointercancel',()=>keys.jump=false);
+$('fireBtn').addEventListener('pointerdown',e=>{e.preventDefault();shoot()});
+document.querySelectorAll('[data-gun]').forEach(b=>b.onclick=()=>switchGun(Number(b.dataset.gun)));
+
+let lastTouch=null;
+renderer.domElement.addEventListener('touchstart',e=>{
+ for(const t of e.changedTouches){
+  if(t.clientX>innerWidth*.34)lastTouch={x:t.clientX,y:t.clientY,id:t.identifier};
+ }
+},{passive:true});
+renderer.domElement.addEventListener('touchmove',e=>{
+ if(!lastTouch)return;
+ for(const t of e.changedTouches){
+  if(t.identifier!==lastTouch.id)continue;
+  cameraYaw-=(t.clientX-lastTouch.x)*.006;
+  cameraPitch=THREE.MathUtils.clamp(cameraPitch-(t.clientY-lastTouch.y)*.004,-.45,.45);
+  lastTouch={x:t.clientX,y:t.clientY,id:t.identifier};
+ }
+},{passive:true});
+renderer.domElement.addEventListener('touchend',e=>{
+ for(const t of e.changedTouches)if(lastTouch&&t.identifier===lastTouch.id)lastTouch=null;
+},{passive:true});
+
+document.addEventListener('pointerlockchange',()=>{
+ if(started&&!gameOver&&document.pointerLockElement!==renderer.domElement&&matchMedia('(pointer:fine)').matches){
+  $('overlay').style.display='flex';
+  $('card').innerHTML='<h1>GAME PAUSED</h1><p class="muted">गेम जारी रखने के लिए Resume दबाओ।</p><button id="resume">RESUME</button>';
+  $('resume').onclick=()=>{ $('overlay').style.display='none';renderer.domElement.requestPointerLock?.(); };
+ }
+});
+window.addEventListener('resize',()=>{
+ camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
+ renderer.setSize(innerWidth,innerHeight);
+});
+
+buildWorld();createPlayer();createEnemies();updateCamera();updateHUD();animate();
+</script>
+</body>
+</html>
